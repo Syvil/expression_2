@@ -1,0 +1,218 @@
+@name P.E.G. V1.01
+@inputs 
+@outputs Expression:string
+@persist Fulexp:string
+@trigger none
+@model models/props_lab/powerbox02c.mdl
+if(first()){
+    #Pac3 Expression Generator V1.0
+    
+    #---!--- See Graphs Section for help ---!---
+    
+    #      ~[INPUT VALUES GO HERE]~
+    #          ~[general]~
+    Equation = 4 #0 = saw tooth wave, 1 = triangle wave, 2 = sine wave, 3 = cosine wave, 4 = rainbow, 5 = square pulse wave
+    TimerMode = 4 #1 = time(), 2 = synced_time(), 3 = systime(), 4 = timeex()
+    P = 10 #Period in secconds
+    
+    Experimental = 1 #Is it an experimental model?
+    VectorMode = 1 #1 = output all 3 channels (X, Y, and Z), 0 = output only X, rainbow mode is always vectorMode = 1
+    ChatPrint = 0 #Print to chat instead of console, for those with chronic error spam. (Takes more messages, less reliable)
+
+    #          ~[Wave mode and Square pulse mode only]~
+    Color1 = vec(0, 130, 196) #First color
+    Color2 = vec(240, 119, 22) #Second color
+    
+    #          ~[Square pulse mode only]~
+    Duty = 0.1 #Percentage of period that is color2 (0-1)
+    Offset = 5 #Offset of Square pulse start in seconds (Can do negatives)
+    
+    #          ~[Rainbow mode only]~
+    StartHue = 0 #0-360 degrees (not available in experimental mode)
+    Value = 1 #0 to 1
+    Saturation = 0.5 #0 to 1 (Should be less than Value)
+    
+    
+    #[Graphs, starting at Time = 0
+    --[Saw Tooth Wave]
+    Color2_
+               /|   /|   /|
+              / |  / |  / |
+             /  | /  | /  |
+    Color1_ /   |/   |/   |
+           |0   |P   |2P  |3P
+    
+    --[Triangle Wave]--
+    Color2_
+           \      /\      /
+            \    /  \    /
+             \  /    \  /
+    Color1_   \/      \/
+          |0      |P      |2P
+    
+    --[Sine Wave]-- *approximate, imagine it smoother
+    Color2_    ___                 
+             _/   \_             
+            /       \           
+           '         \         ,
+                      \_     _/
+    Color1_             \___/
+           |0                  |P
+    
+    --[Cosine Wave]-- *approximate, imagine it smoother
+    Color2_ __                 __
+              \_             _/
+                \           /
+                 \         /
+                  \_     _/
+    Color1_         \___/
+            |0                  |P
+    
+    --[Rainbow]-- *Split into Red(x,) Green(y,) and Blue(z)
+    [RED,X]
+    RED: V_ _____                    _____
+                 \                  /
+                  \                /
+                   \              /
+                    \            /
+    V(1-S)_          \__________/
+            |0   |    |    |    |    |    |P
+    [GREEN,Y]
+         V_      __________
+                /          \
+               /            \
+              /              \
+             /                \
+    V(1-S)_ /                  \__________
+            |0   |    |    |    |    |    |P
+    [BLUE,Z]
+         V_                __________
+                          /          \
+                         /            \
+                        /              \
+                       /                \
+    V(1-S)_ __________/                  \
+            |0   |    |    |    |    |    |P
+    --[Square Pulse]-- *offset = 0
+    Color2_        _____       _____
+                   |   |       |   |
+                   |   |       |   |
+                   |   |       |   |
+    Color1_ _______|   |_______|   |
+           |0          |P          |2P
+                   |---|Duty
+    
+    ]#
+    
+    #MATH AND STUFF
+    TimerMode = round(clamp(TimerMode, 1, 4))
+    Equation = round(clamp(Equation, 1, 5))
+    Timers =  array("time","synced_time","systime","timeex")
+    
+    if(Experimental){
+        R1 = Color1:x()/255
+        R2 = Color2:x()/255
+        G1 = Color1:y()/255
+        G2 = Color2:y()/255
+        B1 = Color1:z()/255
+        B2 = Color2:z()/255
+    }else{
+        R1 = Color1:x()
+        R2 = Color2:x()
+        G1 = Color1:y()
+        G2 = Color2:y()
+        B1 = Color1:z()
+        B2 = Color2:z()
+    }
+    Timer = Timers[TimerMode,string]
+    if(Equation == 0){ #saw wave
+        Rexp = R1 + "+((" + (R2 - R1) + ")*2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + ")))"
+        Gexp = G1 + "+((" + (G2 - G1) + ")*2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + ")))"
+        Bexp = B1 + "+((" + (B2 - B1) + ")*2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + ")))"
+        if(VectorMode){
+            Fulexp = Rexp + "," + Gexp + "," + Bexp
+        }else{
+            Fulexp = Rexp
+        }
+    }
+    if(Equation == 1){ #triangle wave
+        Rexp = R1 + "+((" + (R2 - R1) + ")*abs(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))))"
+        Gexp = G1 + "+((" + (G2 - G1) + ")*abs(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))))"
+        Bexp = B1 + "+((" + (B2 - B1) + ")*abs(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))))"
+        if(VectorMode){
+            Fulexp = Rexp + "," + Gexp + "," + Bexp
+        }else{
+            Fulexp = Rexp
+        }
+    }elseif(Equation == 2){ #sine wave
+        Rexp = R1 + "+((" + (R2 - R1) + ")*(0.5*sin((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        Gexp = G1 + "+((" + (G2 - G1) + ")*(0.5*sin((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        Bexp = B1 + "+((" + (B2 - B1) + ")*(0.5*sin((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        if(VectorMode){
+            Fulexp = Rexp + "," + Gexp + "," + Bexp
+        }else{
+            Fulexp = Rexp
+        }
+    }elseif(Equation == 3){ #cosine wave
+        Rexp = R1 + "+((" + (R2 - R1) + ")*(0.5*cos((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        Gexp = G1 + "+((" + (G2 - G1) + ")*(0.5*cos((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        Bexp = B1 + "+((" + (B2 - B1) + ")*(0.5*cos((2*PI*" + Timer + "())/" + P + ")+0.5))"
+        if(VectorMode){
+            Fulexp = Rexp + "," + Gexp + "," + Bexp
+        }else{
+            Fulexp = Rexp
+        }
+    }elseif(Equation == 4){ #rainbow
+        if(Experimental){#really hard shit right here m8
+            V = Value
+            S = Saturation
+            C = (V+V*(1-S))/2 
+            Roff = "0"
+            Goff = P + "/3"
+            Boff = P + "/1.5"
+            Peak = V+(V-V*(1-S))
+            Trough = V*(1-S) - (V - V*(1-S))
+            Rexp = "clamp(" + (Trough) + "+((" + (Peak-Trough) + ")*abs(2*((" + Timer + "()-" + Roff + ")/" + P + "-floor(0.5+(" + Timer + "()-" + Roff + ")/" + P + "))))," + (V*(1-S)) + "," + V + ")"
+            Gexp = "clamp(" + (Trough) + "+((" + (Peak-Trough) + ")*abs(2*((" + Timer + "()-" + Goff + ")/" + P + "-floor(0.5+(" + Timer + "()-" + Goff + ")/" + P + "))))," + (V*(1-S)) + "," + V + ")"
+            Bexp = "clamp(" + (Trough) + "+((" + (Peak-Trough) + ")*abs(2*((" + Timer + "()-" + Boff + ")/" + P + "-floor(0.5+(" + Timer + "()-" + Boff + ")/" + P + "))))," + (V*(1-S)) + "," + V + ")"
+            Fulexp = Rexp + "," + Gexp + "," + Bexp
+        }else{
+            Fulexp = "hsv_to_color(360*" + Timer + "()/" + P + "+" + StartHue + "," + Saturation + "," + Value + ")"
+        }
+        #hsv_to_color(360*timeex()/period, saturation, value)
+    }elseif(Equation == 5){#square pulse wave
+        #Saw 2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))"
+        Rexp = R1 + "+((" + (R2 - R1) + ")*clamp(sgn(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))+"+(Duty-0.5)+"),0,1))"
+        Gexp = G1 + "+((" + (G2 - G1) + ")*clamp(sgn(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))+"+(Duty-0.5)+"),0,1))"
+        Bexp = B1 + "+((" + (B2 - B1) + ")*clamp(sgn(2*(" + Timer + "()/" + P + "-floor(0.5+" + Timer + "()/" + P + "))+"+(Duty-0.5)+"),0,1))"
+        Fulexp = Rexp + "," + Gexp + "," + Bexp
+    }
+    
+#[
+R1 + ((R2 - R1)*abs(2*(timeex()/P - floor(0.5 + timeex()/P)))),G1 + ((G2 - G1)*abs(2*(timeex()/P - floor(0.5 + timeex()/P)))),B = B1 + ((B2 - B1)*abs(2*(timeex()/P - floor(0.5 + timeex()/P))))
+]#
+    Expression = Fulexp
+    if(ChatPrint){
+        while(Fulexp !=""){#Char limit workaround, chat limit is 126
+            OutText = Fulexp:left(125)
+            Fulexp = Fulexp:sub(126)
+            print(OutText)
+        }
+        print("printed function to chat")
+    }else{
+        while(Fulexp !=""){#Char limit workaround, console limit is 258
+            OutText = Fulexp:left(240)
+            Fulexp = Fulexp:sub(241)
+            print(_HUD_PRINTCONSOLE, OutText)
+        }
+        print("printed function to console")
+    }
+}
+#[
+E2 coded by Syvil STEAM_0:1:20379169
+E2 idea from Major; STEAM_0:0:74682665
+Saw tooth equation from https://en.wikipedia.org/wiki/Sawtooth_wave
+Triangle wave conversion from https://en.wikipedia.org/wiki/Triangle_wave
+Sine wave equation from https://en.wikipedia.org/wiki/Sine_wave
+HSV wave solution inspiration from https://www.vagrearg.org/content/hsvrgb
+]#
